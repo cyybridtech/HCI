@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { MapContainer, TileLayer, Marker, Popup, Polyline } from 'react-leaflet';
 import 'leaflet/dist/leaflet.css';
 import L from 'leaflet';
@@ -24,37 +24,43 @@ const shuttleIcon = new L.DivIcon({
   iconAnchor: [16, 16]
 });
 
+// API configuration
+const API_BASE_URL = window.location.hostname === 'localhost' ? 'http://localhost:8000' : '';
+
 function App() {
   const [shuttles, setShuttles] = useState([]);
   const [routes, setRoutes] = useState([]);
   const [loading, setLoading] = useState(true);
+  const pollingRef = useRef(null);
 
-  useEffect(() => {
-    // Fetch initial routes
-    fetch('http://localhost:8000/api/routes')
-      .then(res => res.json())
-      .then(data => {
-        setRoutes(data);
-      })
-      .catch(err => console.error("Error fetching routes:", err));
-
-    // Fetch initial shuttles
-    fetch('http://localhost:8000/api/shuttles')
+  const fetchShuttles = () => {
+    fetch(`${API_BASE_URL}/api/shuttles`)
       .then(res => res.json())
       .then(data => {
         setShuttles(data);
         setLoading(false);
       })
       .catch(err => console.error("Error fetching shuttles:", err));
+  };
 
-    // WebSocket for real-time updates
-    const ws = new WebSocket('ws://localhost:8000/ws/shuttles');
-    ws.onmessage = (event) => {
-      const data = JSON.parse(event.data);
-      setShuttles(data);
+  useEffect(() => {
+    // Fetch initial routes
+    fetch(`${API_BASE_URL}/api/routes`)
+      .then(res => res.json())
+      .then(data => {
+        setRoutes(data);
+      })
+      .catch(err => console.error("Error fetching routes:", err));
+
+    // Initial fetch for shuttles
+    fetchShuttles();
+
+    // Start polling every 3 seconds
+    pollingRef.current = setInterval(fetchShuttles, 3000);
+
+    return () => {
+      if (pollingRef.current) clearInterval(pollingRef.current);
     };
-
-    return () => ws.close();
   }, []);
 
   return (
@@ -66,7 +72,7 @@ function App() {
           <h1 className="text-2xl font-bold">UniShuttle Tracker</h1>
         </div>
         <div className="hidden md:block text-sm">
-          Real-time Campus Transportation
+          Real-time Campus Transportation (Live)
         </div>
       </header>
 
@@ -93,6 +99,7 @@ function App() {
                 </div>
               </div>
             ))}
+            {loading && <div className="text-gray-500 italic">Loading shuttle locations...</div>}
           </div>
 
           <h2 className="text-xl font-semibold mt-8 mb-4 flex items-center gap-2">

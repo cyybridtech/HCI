@@ -1,57 +1,32 @@
-# Architecture: University Shuttle Tracking System
-
-## Overview
-The University Shuttle Tracking System is designed to provide students with real-time information about campus shuttle locations, routes, and estimated arrival times.
+# University Shuttle Tracking System - Architecture
 
 ## Tech Stack
-- **Backend:** Python with FastAPI
-- **Frontend:** React with Tailwind CSS
-- **Maps:** Leaflet.js (for route and shuttle visualization)
-- **Database:** SQLite (for storing routes, stops, and historical data)
-- **Real-time Communication:** WebSockets or Long Polling for live shuttle updates
+- **Frontend**: React (Vite), Tailwind CSS, Leaflet.js
+- **Backend**: FastAPI (Python)
+- **Deployment**: Vercel (All-in-one)
 
-## Data Models
+## System Design
+The application is designed to be **stateless** and **serverless-compatible**, allowing it to be hosted entirely on Vercel.
 
-### Shuttle
-- `id`: Unique identifier
-- `name`: Name of the shuttle (e.g., "Shuttle A")
-- `route_id`: ID of the route the shuttle is currently serving
-- `latitude`: Current latitude
-- `longitude`: Current longitude
-- `last_updated`: Timestamp of the last location update
-- `status`: (e.g., "Active", "Delayed", "Out of Service")
+### 1. Frontend (React)
+- **Map Visualization**: Uses Leaflet.js to render campus maps and shuttle locations.
+- **Real-time Updates**: Instead of WebSockets (unsupported by standard Vercel functions), the frontend uses **Polling**. It fetches updated shuttle positions from the backend every 3 seconds.
+- **Responsive UI**: Styled with Tailwind CSS for both mobile and desktop use.
 
-### Route
-- `id`: Unique identifier
-- `name`: Name of the route
-- `color`: Hex color for map visualization
-- `path`: List of coordinates defining the route line
+### 2. Backend (FastAPI / Serverless)
+- **API Endpoints**:
+    - `GET /api/routes`: Returns static route data (paths and colors).
+    - `GET /api/shuttles`: Returns current shuttle locations.
+- **Movement Simulation**: Since the backend is stateless (Serverless Functions), shuttle movement is calculated based on the current **Unix Timestamp**. The backend uses a mathematical interpolation function to determine where a shuttle should be along its route at any given second.
 
-### Stop
-- `id`: Unique identifier
-- `name`: Name of the stop
-- `latitude`: Latitude of the stop
-- `longitude`: Longitude of the stop
-- `routes`: List of route IDs that serve this stop
+### 3. Data Flow
+1. User opens the web app.
+2. Frontend fetches the campus routes.
+3. Frontend starts a polling loop.
+4. Every 3 seconds, the Frontend calls `/api/shuttles`.
+5. The Backend calculates the "live" position based on the current time and returns the coordinates.
+6. The Map updates the shuttle markers smoothly.
 
-## API Endpoints
-
-### Backend (FastAPI)
-- `GET /api/shuttles`: Returns a list of all shuttles and their current locations.
-- `GET /api/shuttles/{id}`: Returns details for a specific shuttle.
-- `GET /api/routes`: Returns all shuttle routes and their paths.
-- `GET /api/stops`: Returns all shuttle stops.
-- `POST /api/shuttles/{id}/location`: (Internal/Driver API) Update the location of a shuttle.
-- `WS /ws/shuttles`: WebSocket endpoint for real-time shuttle location updates.
-
-## Frontend Components
-- **MapContainer**: The main map view showing routes and moving shuttle icons.
-- **RouteSidebar**: List of routes with the ability to toggle visibility.
-- **ShuttleDetail**: Detailed information about a selected shuttle (status, next stop, ETA).
-- **NotificationBanner**: Alerts for delays or service changes.
-
-## Development Plan
-1. Implement the FastAPI backend with mock data.
-2. Set up the React frontend with Leaflet integration.
-3. Connect the frontend to the backend via REST and WebSockets.
-4. Add simulation logic to move shuttles along routes for demonstration.
+## Deployment on Vercel
+- The root `vercel.json` routes `/api/*` requests to the Python serverless function in `/api/index.py`.
+- The frontend is built into the `dist` folder and served as static assets.
