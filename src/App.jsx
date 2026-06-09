@@ -2,35 +2,23 @@ import React, { useState, useEffect, useRef } from 'react';
 import { MapContainer, TileLayer, Marker, Popup, Polyline } from 'react-leaflet';
 import 'leaflet/dist/leaflet.css';
 import L from 'leaflet';
-import { Bus, Navigation, Map as MapIcon, Clock } from 'lucide-react';
-
-// Fix for default marker icons in Leaflet
-import markerIcon from 'leaflet/dist/images/marker-icon.png';
-import markerShadow from 'leaflet/dist/images/marker-shadow.png';
-
-let DefaultIcon = L.icon({
-    iconUrl: markerIcon,
-    shadowUrl: markerShadow,
-    iconSize: [25, 41],
-    iconAnchor: [12, 41]
-});
-
-L.Marker.prototype.options.icon = DefaultIcon;
-
-const shuttleIcon = new L.DivIcon({
-  className: 'custom-shuttle-icon',
-  html: '<div style="background-color: white; border-radius: 50%; padding: 5px; border: 2px solid #3b82f6; display: flex; align-items: center; justify-content: center;"><svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#3b82f6" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-bus"><path d="M8 6v6"/><path d="M15 6v6"/><path d="M2 12h20v5a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2Z"/><path d="M9 18h6"/><circle cx="7" cy="15" r="1"/><circle cx="17" cy="15" r="1"/><path d="M4 6h16a2 2 0 0 1 2 2v4H2V8a2 2 0 0 1 2-2Z"/></svg></div>',
-  iconSize: [32, 32],
-  iconAnchor: [16, 16]
-});
+import { Bus, Navigation, Map as MapIcon, Clock, Menu, X } from 'lucide-react';
 
 // API configuration
 const API_BASE_URL = window.location.hostname === 'localhost' ? 'http://localhost:8000' : '';
+
+const shuttleIcon = new L.DivIcon({
+  className: 'custom-shuttle-icon',
+  html: '<div style="background-color: white; border-radius: 50%; padding: 6px; border: 2px solid #3b82f6; display: flex; align-items: center; justify-content: center; box-shadow: 0 2px 4px rgba(0,0,0,0.3);"><svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#3b82f6" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M8 6v6"/><path d="M15 6v6"/><path d="M2 12h20v5a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2Z"/><path d="M9 18h6"/><circle cx="7" cy="15" r="1"/><circle cx="17" cy="15" r="1"/><path d="M4 6h16a2 2 0 0 1 2 2v4H2V8a2 2 0 0 1 2-2Z"/></svg></div>',
+  iconSize: [36, 36],
+  iconAnchor: [18, 18]
+});
 
 function App() {
   const [shuttles, setShuttles] = useState([]);
   const [routes, setRoutes] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [sidebarOpen, setSidebarOpen] = useState(false);
   const pollingRef = useRef(null);
 
   const fetchShuttles = () => {
@@ -44,18 +32,12 @@ function App() {
   };
 
   useEffect(() => {
-    // Fetch initial routes
     fetch(`${API_BASE_URL}/api/routes`)
       .then(res => res.json())
-      .then(data => {
-        setRoutes(data);
-      })
+      .then(data => setRoutes(data))
       .catch(err => console.error("Error fetching routes:", err));
 
-    // Initial fetch for shuttles
     fetchShuttles();
-
-    // Start polling every 3 seconds
     pollingRef.current = setInterval(fetchShuttles, 3000);
 
     return () => {
@@ -64,87 +46,125 @@ function App() {
   }, []);
 
   return (
-    <div className="flex flex-col h-screen w-full bg-gray-900 text-white overflow-hidden">
+    <div className="flex flex-col h-screen w-full bg-gray-950 text-white overflow-hidden font-sans">
       {/* Header */}
-      <header className="bg-blue-600 p-4 shadow-lg flex items-center justify-between">
-        <div className="flex items-center space-x-2">
-          <Bus size={32} />
-          <h1 className="text-2xl font-bold">UniShuttle Tracker</h1>
+      <header className="bg-blue-700 p-4 shadow-xl flex items-center justify-between z-50">
+        <div className="flex items-center space-x-3">
+          <button
+            onClick={() => setSidebarOpen(!sidebarOpen)}
+            className="lg:hidden p-2 hover:bg-blue-800 rounded-lg transition-colors"
+          >
+            {sidebarOpen ? <X size={24} /> : <Menu size={24} />}
+          </button>
+          <div className="flex items-center space-x-2">
+            <Bus size={28} className="text-white" />
+            <h1 className="text-xl md:text-2xl font-black tracking-tight">UniShuttle</h1>
+          </div>
         </div>
-        <div className="hidden md:block text-sm">
-          Real-time Campus Transportation (Live)
+        <div className="flex items-center space-x-4">
+          <div className="hidden sm:flex items-center px-3 py-1 bg-blue-800 rounded-full text-xs font-medium border border-blue-500/30">
+            <span className="w-2 h-2 bg-green-400 rounded-full mr-2 animate-pulse"></span>
+            LIVE SYSTEM
+          </div>
         </div>
       </header>
 
-      <div className="flex flex-1 overflow-hidden">
-        {/* Sidebar */}
-        <aside className="w-80 bg-gray-800 p-4 overflow-y-auto hidden lg:block">
-          <h2 className="text-xl font-semibold mb-4 flex items-center gap-2">
-            <Navigation size={20} /> Active Shuttles
-          </h2>
-          <div className="space-y-4">
-            {shuttles.map(shuttle => (
-              <div key={shuttle.id} className="bg-gray-700 p-3 rounded-lg border-l-4 border-blue-500">
-                <div className="font-bold">{shuttle.name}</div>
-                <div className="text-sm text-gray-400">Route: {shuttle.route_id}</div>
-                <div className="flex items-center justify-between mt-2">
-                  <span className={`text-xs px-2 py-1 rounded ${
-                    shuttle.status === 'Active' ? 'bg-green-900 text-green-300' : 'bg-red-900 text-red-300'
-                  }`}>
-                    {shuttle.status}
-                  </span>
-                  <div className="text-xs text-gray-500 flex items-center gap-1">
-                    <Clock size={12} /> Just now
-                  </div>
-                </div>
-              </div>
-            ))}
-            {loading && <div className="text-gray-500 italic">Loading shuttle locations...</div>}
-          </div>
+      <div className="flex flex-1 overflow-hidden relative">
+        {/* Sidebar - Mobile Overlay */}
+        <div className={`
+          fixed inset-0 bg-black/50 z-40 transition-opacity duration-300 lg:hidden
+          ${sidebarOpen ? 'opacity-100 visible' : 'opacity-0 invisible'}
+        `} onClick={() => setSidebarOpen(false)}></div>
 
-          <h2 className="text-xl font-semibold mt-8 mb-4 flex items-center gap-2">
-            <MapIcon size={20} /> Routes
-          </h2>
-          <div className="space-y-2">
-            {routes.map(route => (
-              <div key={route.id} className="flex items-center gap-2 p-2 rounded hover:bg-gray-700 transition-colors cursor-pointer">
-                <div className="w-3 h-3 rounded-full" style={{ backgroundColor: route.color }}></div>
-                <span>{route.name}</span>
+        {/* Sidebar Content */}
+        <aside className={`
+          absolute lg:relative z-40 w-72 h-full bg-gray-900 border-r border-gray-800 transition-transform duration-300 transform
+          ${sidebarOpen ? 'translate-x-0' : '-translate-x-full'}
+          lg:translate-x-0 overflow-y-auto
+        `}>
+          <div className="p-5 space-y-8">
+            <section>
+              <h2 className="text-xs font-bold text-gray-500 uppercase tracking-widest mb-4 flex items-center gap-2">
+                <Navigation size={14} /> Active Shuttles
+              </h2>
+              <div className="space-y-3">
+                {shuttles.map(shuttle => (
+                  <div key={shuttle.id} className="group bg-gray-800/50 hover:bg-gray-800 p-4 rounded-xl border border-gray-700/50 hover:border-blue-500/50 transition-all duration-200">
+                    <div className="flex justify-between items-start mb-2">
+                      <div className="font-bold text-gray-100">{shuttle.name}</div>
+                      <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full uppercase tracking-tighter ${
+                        shuttle.status === 'Active' ? 'bg-green-500/10 text-green-400' : 'bg-red-500/10 text-red-400'
+                      }`}>
+                        {shuttle.status}
+                      </span>
+                    </div>
+                    <div className="text-xs text-gray-400 flex items-center gap-1">
+                      <MapIcon size={12} className="opacity-50" /> {shuttle.route_id}
+                    </div>
+                    <div className="mt-3 pt-3 border-t border-gray-700/30 flex justify-between items-center">
+                      <div className="text-[10px] text-gray-500 flex items-center gap-1">
+                        <Clock size={10} /> Updated just now
+                      </div>
+                    </div>
+                  </div>
+                ))}
+                {loading && (
+                  <div className="flex items-center justify-center p-8">
+                    <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-500"></div>
+                  </div>
+                )}
               </div>
-            ))}
+            </section>
+
+            <section>
+              <h2 className="text-xs font-bold text-gray-500 uppercase tracking-widest mb-4 flex items-center gap-2">
+                <MapIcon size={14} /> Available Routes
+              </h2>
+              <div className="space-y-2">
+                {routes.map(route => (
+                  <div key={route.id} className="flex items-center justify-between p-3 rounded-lg hover:bg-gray-800 transition-colors cursor-pointer group">
+                    <div className="flex items-center gap-3">
+                      <div className="w-2.5 h-2.5 rounded-full ring-4 ring-gray-900 shadow-sm" style={{ backgroundColor: route.color }}></div>
+                      <span className="text-sm font-medium text-gray-300 group-hover:text-white">{route.name}</span>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </section>
           </div>
         </aside>
 
         {/* Map Area */}
-        <main className="flex-1 relative">
-          <MapContainer center={[5.6515, -0.19]} zoom={15} style={{ height: '100%', width: '100%' }}>
+        <main className="flex-1 relative bg-gray-900">
+          <MapContainer center={[5.6515, -0.19]} zoom={15} className="h-full w-full">
             <TileLayer
               attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
               url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
             />
 
-            {/* Draw Routes */}
             {routes.map(route => (
               <Polyline
                 key={route.id}
                 positions={route.path.map(p => [p.lat, p.lng])}
                 color={route.color}
-                weight={4}
-                opacity={0.7}
+                weight={5}
+                opacity={0.6}
               />
             ))}
 
-            {/* Draw Shuttles */}
             {shuttles.map(shuttle => (
               <Marker
                 key={shuttle.id}
                 position={[shuttle.location.lat, shuttle.location.lng]}
                 icon={shuttleIcon}
               >
-                <Popup>
-                  <div className="text-gray-900">
-                    <strong className="block">{shuttle.name}</strong>
-                    <span className="text-sm">Status: {shuttle.status}</span>
+                <Popup className="custom-popup">
+                  <div className="p-1">
+                    <strong className="text-blue-700 block text-base leading-tight mb-1">{shuttle.name}</strong>
+                    <div className="flex items-center gap-2">
+                       <span className={`w-2 h-2 rounded-full ${shuttle.status === 'Active' ? 'bg-green-500' : 'bg-red-500'}`}></span>
+                       <span className="text-xs font-bold uppercase text-gray-500 tracking-tight">{shuttle.status}</span>
+                    </div>
                   </div>
                 </Popup>
               </Marker>
